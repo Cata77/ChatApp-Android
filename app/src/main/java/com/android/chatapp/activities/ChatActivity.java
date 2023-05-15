@@ -31,6 +31,7 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import org.json.JSONArray;
@@ -250,25 +251,57 @@ public class ChatActivity extends BaseActivity {
         binding.layoutSend.setOnClickListener(v -> sendMessage());
     }
 
-    // this is where I tried to delete the conversation
     private void deleteConversation() {
-        binding.imageInfo.setOnClickListener(v -> {
-            Log.d("tag message ablsa",conversionId);
-            database.collection(Constants.KEY_COLLECTION_CHAT).document(conversionId)
-                    .delete()
-                    .addOnSuccessListener(new OnSuccessListener<Void>() {
-                        @Override
-                        public void onSuccess(Void aVoid) {
-                            Log.d(TAG, "DocumentSnapshot successfully deleted!");
-                        }
-                    })
-                    .addOnFailureListener(new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                            Log.w(TAG, "Error deleting document", e);
-                        }
-                    });
-        });
+        binding.imageInfo.setOnClickListener(v -> deleteChat());
+    }
+
+    private void deleteRecentConversation() {
+        database.collection(Constants.KEY_COLLECTION_CONVERSATIONS).document(conversionId)
+                .delete()
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(TAG, "DocumentSnapshot successfully deleted!");
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w(TAG, "Error deleting document", e);
+                    }
+                });
+    }
+
+    private void deleteChat() {
+        String userId1 = preferenceManager.getKey(Constants.KEY_USER_ID);
+        String userId2 = receiverUser.id;
+
+        database.collection(Constants.KEY_COLLECTION_CHAT)
+                .whereEqualTo(Constants.KEY_SENDER_ID, userId1)
+                .whereEqualTo(Constants.KEY_RECEIVER_ID, userId2)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
+                        database.collection(Constants.KEY_COLLECTION_CHAT)
+                                .document(documentSnapshot.getId())
+                                .delete();
+                    }
+                })
+                .addOnFailureListener(e -> showToast("Error deleting conversation: " + e.getMessage()));
+
+        database.collection(Constants.KEY_COLLECTION_CHAT)
+                .whereEqualTo(Constants.KEY_SENDER_ID, userId2)
+                .whereEqualTo(Constants.KEY_RECEIVER_ID, userId1)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
+                        database.collection(Constants.KEY_COLLECTION_CHAT)
+                                .document(documentSnapshot.getId())
+                                .delete();
+                    }
+                })
+                .addOnFailureListener(e -> showToast("Error deleting conversation: " + e.getMessage()));
+        deleteRecentConversation();
     }
 
 
